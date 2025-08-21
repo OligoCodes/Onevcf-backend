@@ -10,6 +10,7 @@ app.post('/save' , (req, res) => {
 
   if (!name || !number) {
  return res.status(400).send('Name and number required');
+  }
 
   const vcfEntry = `BEGIN:VCARD\nVERSION:3.0\nFN:${name}\nTEL:${number}\nEND:VCARD\n`;}
 
