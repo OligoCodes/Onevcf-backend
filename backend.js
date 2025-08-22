@@ -10,7 +10,7 @@ app.use(bodyParser.json());
 app.use(cors());
 app.use(express.static("public"));
 
-// Postgres connection
+// Postgres connection (replace with your Render credentials)
 const pool = new Pool({
   host: 'dpg-d2k33mumcj7s739r5rj0-a',
   port: 5432,
@@ -19,15 +19,15 @@ const pool = new Pool({
   password: 'd5hCikfh6PaYHRvgy4wevRyYD2uSHBjp'
 });
 
-// Path for VCF file in project folder
-const vcfPath = path.join(__dirname, 'one-vcf.vcf');
+// Choose safe VCF path
+// Locally: in project folder
+// Render: in /tmp folder (writable)
+const vcfPath = process.env.RENDER ? '/tmp/one-vcf.vcf' : path.join(__dirname, 'one-vcf.vcf');
+console.log('VCF will be saved at:', vcfPath);
 
-// Append new contact to VCF safely
+// Function to append a contact to VCF
 const appendToVcf = (contact) => {
-  if (!contact || !contact.name || !contact.number) {
-    console.log('❌ Invalid contact data:', contact);
-    return;
-  }
+  if (!contact) return;
 
   const vcfEntry = 
     `BEGIN:VCARD\nVERSION:3.0\nFN:${contact.name}\nTEL:${contact.number}\nEND:VCARD\n`;
@@ -36,11 +36,11 @@ const appendToVcf = (contact) => {
     fs.appendFileSync(vcfPath, vcfEntry, 'utf8');
     console.log('✅ VCF updated:', contact.name, contact.number);
   } catch (err) {
-    console.error('❌ Error writing to VCF:', err);
+    console.error('❌ Failed writing VCF:', err);
   }
 };
 
-// Initialize DB
+// Initialize Postgres DB
 const initDb = async () => {
   try {
     await pool.query(`
@@ -52,7 +52,7 @@ const initDb = async () => {
     `);
     console.log('✅ Postgres DB ready!');
   } catch (err) {
-    console.error('❌ DB initialization error:', err);
+    console.error('❌ DB initialization failed:', err);
   }
 };
 
@@ -66,11 +66,10 @@ app.post('/save', async (req, res) => {
       'INSERT INTO contacts (name, number) VALUES ($1, $2)',
       [name, number]
     );
-    console.log('📥 Contact saved to DB:', name, number);
 
     appendToVcf({ name, number });
 
-    res.json({ message: '✅ Contact saved successfully.' });
+    res.json({ message: '✅️ Contact saved successfully.' });
   } catch (err) {
     console.error('❌ Error saving contact:', err);
     res.status(500).json({ message: '❌ Error saving contact.' });
@@ -79,5 +78,6 @@ app.post('/save', async (req, res) => {
 
 // Start server
 initDb().then(() => {
-  app.listen(3000, () => console.log('🙌 Server Running at http://localhost:3000'));
+  const PORT = process.env.PORT || 3000;
+  app.listen(PORT, () => console.log(`🙌 Server Running at http://localhost:${PORT}`));
 });
