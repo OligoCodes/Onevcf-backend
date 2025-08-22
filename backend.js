@@ -20,8 +20,6 @@ const pool = new Pool({
 });
 
 // Choose safe VCF path
-// Locally: in project folder
-// Render: in /tmp folder (writable)
 const vcfPath = process.env.RENDER ? '/tmp/one-vcf.vcf' : path.join(__dirname, 'one-vcf.vcf');
 console.log('VCF will be saved at:', vcfPath);
 
@@ -37,6 +35,22 @@ const appendToVcf = (contact) => {
     console.log('✅ VCF updated:', contact.name, contact.number);
   } catch (err) {
     console.error('❌ Failed writing VCF:', err);
+  }
+};
+
+// Export all existing contacts to VCF
+const exportAllContactsToVcf = async () => {
+  try {
+    const { rows } = await pool.query('SELECT name, number FROM contacts;');
+    if (!rows.length) return console.log('No contacts to export.');
+
+    // Overwrite VCF file
+    fs.writeFileSync(vcfPath, '', 'utf8'); 
+    rows.forEach(contact => appendToVcf(contact));
+
+    console.log(`✅ Exported ${rows.length} contacts to VCF.`);
+  } catch (err) {
+    console.error('❌ Failed to export contacts:', err);
   }
 };
 
@@ -77,7 +91,8 @@ app.post('/save', async (req, res) => {
 });
 
 // Start server
-initDb().then(() => {
+initDb().then(async () => {
+  await exportAllContactsToVcf(); // Export old contacts to VCF
   const PORT = process.env.PORT || 3000;
   app.listen(PORT, () => console.log(`🙌 Server Running at http://localhost:${PORT}`));
 });
