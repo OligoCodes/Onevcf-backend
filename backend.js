@@ -2,7 +2,7 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const fs = require('fs');
 const cors = require('cors');
-const { Pool } = require('pg'); // Postgres client
+const { Pool } = require('pg');
 const path = require('path');
 
 const app = express();
@@ -10,7 +10,7 @@ app.use(bodyParser.json());
 app.use(cors());
 app.use(express.static("public"));
 
-// Postgres connection (replace with your Render credentials)
+// Postgres connection
 const pool = new Pool({
   host: 'dpg-d2k33mumcj7s739r5rj0-a',
   port: 5432,
@@ -19,29 +19,41 @@ const pool = new Pool({
   password: 'd5hCikfh6PaYHRvgy4wevRyYD2uSHBjp'
 });
 
-// Path for VCF in the same folder
+// Path for VCF file in project folder
 const vcfPath = path.join(__dirname, 'one-vcf.vcf');
 
-// Append new contact to VCF
+// Append new contact to VCF safely
 const appendToVcf = (contact) => {
-  if (!contact) return;
+  if (!contact || !contact.name || !contact.number) {
+    console.log('❌ Invalid contact data:', contact);
+    return;
+  }
 
   const vcfEntry = 
     `BEGIN:VCARD\nVERSION:3.0\nFN:${contact.name}\nTEL:${contact.number}\nEND:VCARD\n`;
 
-  fs.appendFileSync(vcfPath, vcfEntry);
+  try {
+    fs.appendFileSync(vcfPath, vcfEntry, 'utf8');
+    console.log('✅ VCF updated:', contact.name, contact.number);
+  } catch (err) {
+    console.error('❌ Error writing to VCF:', err);
+  }
 };
 
-// Create contacts table if not exists
+// Initialize DB
 const initDb = async () => {
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS contacts (
-      id SERIAL PRIMARY KEY,
-      name TEXT NOT NULL,
-      number TEXT NOT NULL
-    );
-  `);
-  console.log('✅️ Postgres DB ready!');
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS contacts (
+        id SERIAL PRIMARY KEY,
+        name TEXT NOT NULL,
+        number TEXT NOT NULL
+      );
+    `);
+    console.log('✅ Postgres DB ready!');
+  } catch (err) {
+    console.error('❌ DB initialization error:', err);
+  }
 };
 
 // POST route to save contact
@@ -54,12 +66,13 @@ app.post('/save', async (req, res) => {
       'INSERT INTO contacts (name, number) VALUES ($1, $2)',
       [name, number]
     );
+    console.log('📥 Contact saved to DB:', name, number);
 
     appendToVcf({ name, number });
 
-    res.json({ message: '✅️ Contact saved successfully.' });
+    res.json({ message: '✅ Contact saved successfully.' });
   } catch (err) {
-    console.error(err);
+    console.error('❌ Error saving contact:', err);
     res.status(500).json({ message: '❌ Error saving contact.' });
   }
 });
