@@ -12,11 +12,11 @@ app.use(express.static("public"));
 
 // Postgres connection (replace with your Render credentials)
 const pool = new Pool({
-  host: 'YOUR_HOST',
+  host: 'dpg-d2k33mumcj7s739r5rj0-a',
   port: 5432,
-  database: 'YOUR_DB',
-  user: 'YOUR_USER',
-  password: 'YOUR_PASSWORD'
+  database: 'contacts_db_s6oo',
+  user: 'oligocodes',
+  password: 'd5hCikfh6PaYHRvgy4wevRyYD2uSHBjp'
 });
 
 // Path for VCF in the same folder
